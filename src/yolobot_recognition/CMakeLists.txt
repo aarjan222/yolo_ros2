@@ -35,7 +35,6 @@ endif()
 install(
   DIRECTORY
     scripts
-    launch
   DESTINATION
     share/${PROJECT_NAME}/
 )
@@ -44,7 +43,6 @@ install(
   PROGRAMS
   scripts/yolov8_ros2_pt.py
   scripts/yolov8_ros2_subscriber.py
-  launch/launch_yolov8.launch.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

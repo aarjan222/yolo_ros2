@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 from ultralytics import YOLO
 import rclpy
 from rclpy.node import Node
@@ -11,23 +12,30 @@ from yolov8_msgs.msg import Yolov8Inference
 
 bridge = CvBridge()
 
+
 class Camera_subscriber(Node):
 
     def __init__(self):
         super().__init__('camera_subscriber')
 
-        self.model = YOLO('~/yolo_ros2/src/yolobot_recognition/scripts/yolov8n.pt')
+        model_path = os.path.expanduser(
+            '~/yolo_ros2/src/yolobot_recognition/scripts/modeln.pt')
+        self.model = YOLO(model_path)
+
+        self.get_logger().info(
+            '{}'.format(self.model.info()))
 
         self.yolov8_inference = Yolov8Inference()
 
         self.subscription = self.create_subscription(
             Image,
-            'rgb_cam/image_raw',
+            'image_raw',
             self.camera_callback,
             10)
-        self.subscription 
+        self.subscription
 
-        self.yolov8_pub = self.create_publisher(Yolov8Inference, "/Yolov8_inference", 1)
+        self.yolov8_pub = self.create_publisher(
+            Yolov8Inference, "/Yolov8_inference", 1)
         self.img_pub = self.create_publisher(Image, "/inference_result", 1)
 
     def camera_callback(self, data):
@@ -43,24 +51,27 @@ class Camera_subscriber(Node):
             boxes = r.boxes
             for box in boxes:
                 self.inference_result = InferenceResult()
-                b = box.xyxy[0].to('cpu').detach().numpy().copy()  # get box coordinates in (top, left, bottom, right) format
+                # get box coordinates in (top, left, bottom, right) format
+                b = box.xyxy[0].to('cpu').detach().cpu().numpy().copy()
                 c = box.cls
                 self.inference_result.class_name = self.model.names[int(c)]
                 self.inference_result.top = int(b[0])
                 self.inference_result.left = int(b[1])
                 self.inference_result.bottom = int(b[2])
                 self.inference_result.right = int(b[3])
-                self.yolov8_inference.yolov8_inference.append(self.inference_result)
+                self.yolov8_inference.yolov8_inference.append(
+                    self.inference_result)
 
             # camera_subscriber.get_logger().info(f"{self.yolov8_inference}")
 
         # extract an annotated image from result and convert it to a ros msg
         annotated_frame = results[0].plot()
-        img_msg = bridge.cv2_to_imgmsg(annotated_frame)  
+        img_msg = bridge.cv2_to_imgmsg(annotated_frame)
 
         self.img_pub.publish(img_msg)
         self.yolov8_pub.publish(self.yolov8_inference)
         self.yolov8_inference.yolov8_inference.clear()
+
 
 if __name__ == '__main__':
     rclpy.init(args=None)

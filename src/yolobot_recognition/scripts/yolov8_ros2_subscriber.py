@@ -11,6 +11,8 @@ from yolov8_msgs.msg import Yolov8Inference
 
 bridge = CvBridge()
 
+img = []
+
 class Camera_subscriber(Node):
 
     def __init__(self):
@@ -18,14 +20,15 @@ class Camera_subscriber(Node):
 
         self.subscription = self.create_subscription(
             Image,
-            'rgb_cam/image_raw',
+            'image_raw',
             self.camera_callback,
             10)
-        self.subscription 
+        self.subscription
 
     def camera_callback(self, data):
         global img
         img = bridge.imgmsg_to_cv2(data, "bgr8")
+
 
 class Yolo_subscriber(Node):
 
@@ -37,7 +40,7 @@ class Yolo_subscriber(Node):
             '/Yolov8_inference',
             self.yolo_callback,
             10)
-        self.subscription 
+        self.subscription
 
         self.cnt = 0
 
@@ -46,19 +49,21 @@ class Yolo_subscriber(Node):
     def yolo_callback(self, data):
         global img
         for r in data.yolov8_inference:
-        
+
             class_name = r.class_name
             top = r.top
             left = r.left
             bottom = r.bottom
             right = r.right
-            yolo_subscriber.get_logger().info(f"{self.cnt} {class_name} : {top}, {left}, {bottom}, {right}")
+            yolo_subscriber.get_logger().info(
+                f"{self.cnt} {class_name} : {top}, {left}, {bottom}, {right}")
             cv2.rectangle(img, (top, left), (bottom, right), (255, 255, 0))
             self.cnt += 1
 
         self.cnt = 0
-        img_msg = bridge.cv2_to_imgmsg(img)  
+        img_msg = bridge.cv2_to_imgmsg(img)
         self.img_pub.publish(img_msg)
+
 
 if __name__ == '__main__':
     rclpy.init(args=None)
@@ -71,7 +76,7 @@ if __name__ == '__main__':
 
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()
-    
+
     rate = yolo_subscriber.create_rate(2)
     try:
         while rclpy.ok():
